@@ -1,13 +1,9 @@
-## .gitignore for Creative 404 project
-## Includes common patterns for Node.js, build artifacts, and IDE files
+## .gitignore for Creative 404 .NET Blazor project
 
-# Node.js dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
+# Build artifacts
+dist/
+build/
+*.log
 
 # IDE files
 .vscode/
@@ -19,11 +15,6 @@ yarn.lock
 # OS files
 .DS_Store
 Thumbs.db
-
-# Build artifacts
-dist/
-build/
-*.log
 
 ## Legacy .NET patterns (kept for compatibility)
 

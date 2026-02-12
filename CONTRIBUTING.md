@@ -36,8 +36,8 @@ Thank you for your interest in contributing to Creative 404! We welcome contribu
 ```bash
 git clone https://github.com/nagendramishr/creative404.git
 cd creative404
-npm install
-npm start
+dotnet restore
+dotnet run
 ```
 
 ## Code Style
