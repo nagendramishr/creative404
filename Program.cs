@@ -14,7 +14,12 @@ builder.Services.AddHttpClient("McpClient", client =>
 {
     AllowAutoRedirect = false
 });
+builder.Services.AddHttpClient("ImageGenClient", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 builder.Services.AddScoped<McpService>();
+builder.Services.AddScoped<ImageGenerationService>();
 
 var app = builder.Build();
 
