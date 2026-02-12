@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using Creative404.Services
 @inject McpService McpService
+@inject ImageGenerationService ImageGenService
 
 <PageTitle>Creative 404 Generator</PageTitle>
 
@@ -21,7 +22,7 @@
     <button class="generate-btn" @onclick="GenerateCreative404" disabled="@isLoading">
         @if (isLoading)
         {
-            <span>Inspecting MCP Server...</span>
+            <span>@loadingStatus</span>
         }
         else
         {
@@ -36,7 +37,17 @@
         </div>
     }
 
-    @if (!string.IsNullOrEmpty(currentMessage))
+    @if (!string.IsNullOrEmpty(generatedImageUrl))
+    {
+        <div class="preview-container image-preview" style="background-color: @currentColor;">
+            <h2 class="error-code">404</h2>
+            <p class="error-message">@currentMessage</p>
+            <div class="generated-image-wrapper">
+                <img src="@generatedImageUrl" alt="Creative 404 illustration" class="generated-image" />
+            </div>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(currentMessage))
     {
         <div class="preview-container" style="background-color: @currentColor;">
             <h2 class="error-code">404</h2>
@@ -76,6 +87,8 @@
     private string currentMessage = string.Empty;
     private string currentColor = string.Empty;
     private string? errorMessage;
+    private string? generatedImageUrl;
+    private string loadingStatus = "Inspecting MCP Server...";
     private bool isLoading;
     private McpInspectionResult? inspectionResult;
 
@@ -101,12 +114,14 @@
     {
         errorMessage = null;
         inspectionResult = null;
+        generatedImageUrl = null;
 
         var random = new Random();
 
         if (!string.IsNullOrWhiteSpace(mcpServerUrl))
         {
             isLoading = true;
+            loadingStatus = "Inspecting MCP Server...";
             StateHasChanged();
 
             try
@@ -124,6 +139,20 @@
                     var (message, color) = TuneBasedOnMcpTools(inspectionResult, random);
                     currentMessage = message;
                     currentColor = color;
+
+                    // Generate a creative image based on the MCP server
+                    loadingStatus = "Generating creative 404 image...";
+                    StateHasChanged();
+
+                    var imageResult = await ImageGenService.GenerateImageAsync(inspectionResult);
+                    if (imageResult.Success)
+                    {
+                        generatedImageUrl = imageResult.ImageUrl;
+                    }
+                    else if (!string.IsNullOrEmpty(imageResult.ErrorMessage))
+                    {
+                        errorMessage = imageResult.ErrorMessage;
+                    }
                 }
             }
             finally
