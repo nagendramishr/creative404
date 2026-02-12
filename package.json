@@ -1,0 +1,29 @@
+{
+  "name": "creative404",
+  "version": "1.0.0",
+  "description": "generates creative 404 pages",
+  "main": "src/index.html",
+  "scripts": {
+    "start": "npx http-server src -p 8080",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nagendramishr/creative404.git"
+  },
+  "keywords": [
+    "404",
+    "error-page",
+    "generator",
+    "creative"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nagendramishr/creative404/issues"
+  },
+  "homepage": "https://github.com/nagendramishr/creative404#readme",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
