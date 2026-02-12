@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
@@ -28,6 +29,7 @@ public class McpService
             }
 
             var client = _httpClientFactory.CreateClient("McpClient");
+            string? sessionId = null;
 
             // Step 1: Initialize the MCP connection
             var initRequest = new JsonRpcRequest
@@ -42,7 +44,9 @@ public class McpService
                 }
             };
 
-            var initResponse = await SendJsonRpcAsync<InitializeResult>(client, serverUrl, initRequest);
+            var (initResponse, newSessionId) = await SendJsonRpcAsync<InitializeResult>(client, serverUrl, initRequest, sessionId);
+            sessionId = newSessionId ?? sessionId;
+
             if (initResponse?.Result == null)
             {
                 result.ErrorMessage = initResponse?.Error?.Message ?? "Failed to initialize MCP connection. The server may not support the MCP protocol.";
@@ -60,7 +64,7 @@ public class McpService
                 Params = new { }
             };
 
-            var toolsResponse = await SendJsonRpcAsync<ToolsListResult>(client, serverUrl, toolsRequest);
+            var (toolsResponse, _) = await SendJsonRpcAsync<ToolsListResult>(client, serverUrl, toolsRequest, sessionId);
             if (toolsResponse?.Result?.Tools != null)
             {
                 result.Tools = toolsResponse.Result.Tools;
@@ -90,14 +94,69 @@ public class McpService
         PropertyNameCaseInsensitive = true
     };
 
-    private static async Task<JsonRpcResponse<T>?> SendJsonRpcAsync<T>(HttpClient client, string url, JsonRpcRequest request)
+    private static async Task<(JsonRpcResponse<T>?, string?)> SendJsonRpcAsync<T>(
+        HttpClient client, string url, JsonRpcRequest request, string? sessionId)
     {
         var json = JsonSerializer.Serialize(request, JsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        var response = await client.PostAsync(url, content);
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url);
+        httpRequest.Content = content;
+
+        // MCP StreamableHTTP requires Accept header with both application/json and text/event-stream
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+        if (sessionId != null)
+        {
+            httpRequest.Headers.Add("Mcp-Session-Id", sessionId);
+        }
+
+        var response = await client.SendAsync(httpRequest);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<JsonRpcResponse<T>>(responseJson, JsonOptions);
+        // Extract session ID from response headers
+        string? returnedSessionId = null;
+        if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionValues))
+        {
+            returnedSessionId = sessionValues.FirstOrDefault();
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var contentType = response.Content.Headers.ContentType?.MediaType;
+
+        // Handle SSE (text/event-stream) responses from StreamableHTTP servers
+        if (string.Equals(contentType, "text/event-stream", StringComparison.OrdinalIgnoreCase))
+        {
+            var jsonPayload = ExtractJsonFromSse(responseBody);
+            if (jsonPayload != null)
+            {
+                return (JsonSerializer.Deserialize<JsonRpcResponse<T>>(jsonPayload, JsonOptions), returnedSessionId);
+            }
+            return (null, returnedSessionId);
+        }
+
+        return (JsonSerializer.Deserialize<JsonRpcResponse<T>>(responseBody, JsonOptions), returnedSessionId);
+    }
+
+    /// <summary>
+    /// Extracts the first JSON-RPC message from an SSE stream.
+    /// SSE format: lines prefixed with "data: " followed by JSON content.
+    /// </summary>
+    internal static string? ExtractJsonFromSse(string sseBody)
+    {
+        foreach (var line in sseBody.Split(["\r\n", "\n"], StringSplitOptions.None))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("data:", StringComparison.Ordinal))
+            {
+                var data = trimmed["data:".Length..].Trim();
+                if (data.Length > 0 && data[0] == '{')
+                {
+                    return data;
+                }
+            }
+        }
+        return null;
     }
 }
