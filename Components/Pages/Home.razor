@@ -1,0 +1,235 @@
+﻿@page "/"
+@using Creative404.Models
+@using Creative404.Services
+@inject McpService McpService
+@inject GifGenerationService GifService
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Creative 404 - MCP-Powered GIF Generator</PageTitle>
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <header class="text-center text-white mb-5">
+                <h1 class="display-3 fw-bold mb-3">🎨 Creative 404</h1>
+                <p class="lead">Generate custom animated 404 pages powered by MCP servers</p>
+            </header>
+
+            <div class="card shadow-lg mb-4">
+                <div class="card-body p-4">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">How it works</h5>
+                        <p class="mb-0">Connect to your MCP (Model Context Protocol) server, and we'll create a unique animated GIF for your 404 pages based on your server's content and capabilities.</p>
+                    </div>
+
+                    <EditForm Model="@request" OnValidSubmit="@HandleGenerateGif">
+                        <div class="mb-3">
+                            <label for="mcpServerUrl" class="form-label fw-bold">MCP Server URL or Command:</label>
+                            <InputText @bind-Value="request.McpServerUrl" class="form-control form-control-lg" 
+                                       placeholder="e.g., http://localhost:3001 or npx mcp-server" />
+                            <div class="form-text">Enter the URL of your MCP server or a command to start it</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="theme" class="form-label fw-bold">Theme:</label>
+                                <InputSelect @bind-Value="request.Theme" class="form-select">
+                                    <option value="default">Default (Dark Blue)</option>
+                                    <option value="ocean">Ocean (Cool Blue)</option>
+                                    <option value="sunset">Sunset (Warm Orange)</option>
+                                    <option value="forest">Forest (Natural Green)</option>
+                                </InputSelect>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="width" class="form-label fw-bold">Width (px):</label>
+                                <InputNumber @bind-Value="request.Width" class="form-control" min="200" max="1200" />
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label for="height" class="form-label fw-bold">Height (px):</label>
+                                <InputNumber @bind-Value="request.Height" class="form-control" min="150" max="800" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary btn-lg flex-fill" 
+                                    @onclick="HandlePreview" disabled="@isLoading">
+                                @if (isLoading && loadingType == "preview")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Preview MCP Info
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg flex-fill" disabled="@isLoading">
+                                @if (isLoading && loadingType == "generate")
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Generate 404 GIF
+                            </button>
+                        </div>
+                    </EditForm>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger mt-3">@errorMessage</div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success mt-3">@successMessage</div>
+                    }
+
+                    @if (mcpInfo != null)
+                    {
+                        <div class="alert alert-info mt-3">
+                            <h5 class="alert-heading">MCP Server Information</h5>
+                            <p><strong>Server:</strong> @mcpInfo.ServerName</p>
+                            <p><strong>Tools:</strong> @mcpInfo.ToolCount</p>
+                            <p><strong>Resources:</strong> @mcpInfo.ResourceCount</p>
+                            @if (mcpInfo.Tools.Any())
+                            {
+                                <p><strong>Available Tools:</strong> @string.Join(", ", mcpInfo.Tools)</p>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (generatedImageUrl != null)
+            {
+                <div class="card shadow-lg">
+                    <div class="card-body p-4">
+                        <h2 class="mb-4">Your Custom 404 GIF</h2>
+                        <div class="text-center p-4 bg-light rounded">
+                            <img src="@generatedImageUrl" alt="Generated 404 GIF" class="img-fluid rounded shadow" style="max-width: 100%;" />
+                        </div>
+
+                        <div class="mt-4 d-flex gap-2">
+                            <button class="btn btn-primary" @onclick="DownloadImage">
+                                Download Image
+                            </button>
+                            <button class="btn btn-success" @onclick="CopyEmbedCode">
+                                @(embedCodeCopied ? "Copied!" : "Copy Embed Code")
+                            </button>
+                        </div>
+
+                        @if (showEmbedCode)
+                        {
+                            <div class="mt-3">
+                                <pre class="bg-dark text-light p-3 rounded"><code>&lt;!-- Creative 404 GIF --&gt;
+&lt;img src="YOUR_IMAGE_URL_HERE" alt="404 Not Found" /&gt;</code></pre>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private GifGenerationRequest request = new() { Width = 600, Height = 400, Theme = "default" };
+    private McpServerInfo? mcpInfo;
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isLoading = false;
+    private string loadingType = "";
+    private string? generatedImageUrl;
+    private bool showEmbedCode = false;
+    private bool embedCodeCopied = false;
+
+    private async Task HandlePreview()
+    {
+        errorMessage = null;
+        successMessage = null;
+        isLoading = true;
+        loadingType = "preview";
+
+        try
+        {
+            mcpInfo = await McpService.QueryMcpServerAsync(request.McpServerUrl);
+
+            if (mcpInfo.Connected)
+            {
+                successMessage = "Successfully connected to MCP server!";
+            }
+            else
+            {
+                errorMessage = $"Failed to connect: {mcpInfo.ErrorMessage}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            loadingType = "";
+        }
+    }
+
+    private async Task HandleGenerateGif()
+    {
+        errorMessage = null;
+        successMessage = null;
+        generatedImageUrl = null;
+        isLoading = true;
+        loadingType = "generate";
+
+        try
+        {
+            // Query MCP server first
+            mcpInfo = await McpService.QueryMcpServerAsync(request.McpServerUrl);
+
+            if (!mcpInfo.Connected)
+            {
+                errorMessage = $"Failed to connect to MCP server: {mcpInfo.ErrorMessage}";
+                return;
+            }
+
+            // Generate GIF
+            var gifBytes = await GifService.GenerateGifAsync(request, mcpInfo);
+
+            // Convert to data URL for display
+            var base64 = Convert.ToBase64String(gifBytes);
+            generatedImageUrl = $"data:image/png;base64,{base64}";
+
+            successMessage = "GIF generated successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error generating GIF: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            loadingType = "";
+        }
+    }
+
+    private async Task DownloadImage()
+    {
+        if (!string.IsNullOrEmpty(generatedImageUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("downloadImage", generatedImageUrl, "404-custom.png");
+        }
+    }
+
+    private async Task CopyEmbedCode()
+    {
+        showEmbedCode = true;
+        var embedCode = @"<!-- Creative 404 GIF -->
+<img src=""YOUR_IMAGE_URL_HERE"" alt=""404 Not Found"" />";
+        
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", embedCode);
+        embedCodeCopied = true;
+        
+        await Task.Delay(2000);
+        embedCodeCopied = false;
+    }
+}
+
