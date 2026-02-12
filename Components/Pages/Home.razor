@@ -1,5 +1,7 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+@using Creative404.Services
+@inject McpService McpService
 
 <PageTitle>Creative 404 Generator</PageTitle>
 
@@ -8,11 +10,32 @@
         <h1>Creative 404 Page Generator</h1>
         <p>Generate unique and creative 404 error pages</p>
     </div>
-    
-    <button class="generate-btn" @onclick="GenerateCreative404">
-        Generate 404 Page
+
+    <div class="mcp-input-section">
+        <label for="mcp-url">MCP Server URL (optional)</label>
+        <input id="mcp-url" type="url" class="mcp-url-input" @bind="mcpServerUrl"
+               placeholder="https://your-mcp-server.example.com" />
+        <p class="mcp-hint">Enter an MCP server URL to tune the 404 page based on the server's operations</p>
+    </div>
+
+    <button class="generate-btn" @onclick="GenerateCreative404" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span>Inspecting MCP Server...</span>
+        }
+        else
+        {
+            <span>Generate 404 Page</span>
+        }
     </button>
-    
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-banner">
+            <p>@errorMessage</p>
+        </div>
+    }
+
     @if (!string.IsNullOrEmpty(currentMessage))
     {
         <div class="preview-container" style="background-color: @currentColor;">
@@ -26,13 +49,37 @@
             <p>Click the button above to generate a creative 404 page</p>
         </div>
     }
+
+    @if (inspectionResult is { Success: true })
+    {
+        <div class="mcp-info">
+            <h3>MCP Server: @inspectionResult.ServerName <span class="mcp-version">v@(inspectionResult.ServerVersion)</span></h3>
+            <p class="mcp-tools-label">Discovered @inspectionResult.Tools.Count tool(s):</p>
+            <ul class="mcp-tools-list">
+                @foreach (var tool in inspectionResult.Tools)
+                {
+                    <li>
+                        <strong>@tool.Name</strong>
+                        @if (!string.IsNullOrEmpty(tool.Description))
+                        {
+                            <span> &mdash; @tool.Description</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
 </div>
 
 @code {
+    private string mcpServerUrl = string.Empty;
     private string currentMessage = string.Empty;
     private string currentColor = string.Empty;
-    
-    private readonly string[] messages = new[]
+    private string? errorMessage;
+    private bool isLoading;
+    private McpInspectionResult? inspectionResult;
+
+    private readonly string[] defaultMessages = new[]
     {
         "Oops! This page went on vacation.",
         "404: Page not found. But you found this cool message!",
@@ -43,17 +90,165 @@
         "We looked everywhere, but couldn't find this page.",
         "Plot twist: This page never existed.",
     };
-    
-    private readonly string[] colors = new[]
+
+    private readonly string[] defaultColors = new[]
     {
         "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
         "#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe"
     };
-    
-    private void GenerateCreative404()
+
+    private async Task GenerateCreative404()
     {
+        errorMessage = null;
+        inspectionResult = null;
+
         var random = new Random();
-        currentMessage = messages[random.Next(messages.Length)];
-        currentColor = colors[random.Next(colors.Length)];
+
+        if (!string.IsNullOrWhiteSpace(mcpServerUrl))
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            try
+            {
+                inspectionResult = await McpService.InspectServerAsync(mcpServerUrl.Trim());
+
+                if (!inspectionResult.Success)
+                {
+                    errorMessage = inspectionResult.ErrorMessage;
+                    currentMessage = defaultMessages[random.Next(defaultMessages.Length)];
+                    currentColor = defaultColors[random.Next(defaultColors.Length)];
+                }
+                else
+                {
+                    var (message, color) = TuneBasedOnMcpTools(inspectionResult, random);
+                    currentMessage = message;
+                    currentColor = color;
+                }
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+        else
+        {
+            currentMessage = defaultMessages[random.Next(defaultMessages.Length)];
+            currentColor = defaultColors[random.Next(defaultColors.Length)];
+        }
+    }
+
+    private static (string message, string color) TuneBasedOnMcpTools(McpInspectionResult result, Random random)
+    {
+        var tools = result.Tools;
+        var toolNames = tools.Select(t => t.Name.ToLowerInvariant()).ToList();
+        var toolDescriptions = tools.Select(t => (t.Description ?? "").ToLowerInvariant()).ToList();
+        var allText = string.Join(" ", toolNames.Concat(toolDescriptions));
+
+        // Categorize the MCP server based on its tools and pick themed messages/colors
+        if (ContainsAny(allText, "search", "find", "query", "lookup", "browse"))
+        {
+            var messages = new[]
+            {
+                $"404: Even {result.ServerName}'s search tools couldn't find this page!",
+                $"We queried every endpoint on {result.ServerName}, but this page is truly gone.",
+                $"{result.ServerName} can search the world, but not this missing page.",
+            };
+            return (messages[random.Next(messages.Length)], "#4facfe");
+        }
+
+        if (ContainsAny(allText, "file", "read", "write", "storage", "upload", "download", "document"))
+        {
+            var messages = new[]
+            {
+                $"404: {result.ServerName} checked all the files — this page wasn't in any of them.",
+                $"This page was never saved. Not even {result.ServerName} has a copy.",
+                $"{result.ServerName} manages files, but this page filed for absence.",
+            };
+            return (messages[random.Next(messages.Length)], "#45B7D1");
+        }
+
+        if (ContainsAny(allText, "database", "sql", "table", "record", "collection", "mongo"))
+        {
+            var messages = new[]
+            {
+                $"404: SELECT * FROM pages WHERE url = this — 0 results. Ask {result.ServerName}!",
+                $"This page was DROP TABLE'd. {result.ServerName} confirms it's gone.",
+                $"No records found. {result.ServerName} ran every query possible.",
+            };
+            return (messages[random.Next(messages.Length)], "#667eea");
+        }
+
+        if (ContainsAny(allText, "email", "send", "message", "notify", "alert", "chat", "slack"))
+        {
+            var messages = new[]
+            {
+                $"404: We asked {result.ServerName} to send a message to this page. No reply.",
+                $"This page ghosted us. Even {result.ServerName}'s notifications went unanswered.",
+                $"{result.ServerName} sent the alert, but this page is unreachable.",
+            };
+            return (messages[random.Next(messages.Length)], "#f093fb");
+        }
+
+        if (ContainsAny(allText, "code", "git", "repo", "commit", "deploy", "build", "compile"))
+        {
+            var messages = new[]
+            {
+                $"404: {result.ServerName} checked every commit — this page was never pushed.",
+                $"Build failed: page not found. {result.ServerName} can't deploy what doesn't exist.",
+                $"git blame says nobody wrote this page. {result.ServerName} confirms.",
+            };
+            return (messages[random.Next(messages.Length)], "#764ba2");
+        }
+
+        if (ContainsAny(allText, "image", "photo", "generate", "draw", "render", "art", "design"))
+        {
+            var messages = new[]
+            {
+                $"404: {result.ServerName} tried to render this page, but got a blank canvas.",
+                $"This page is a work of art — abstract, invisible, and not found.",
+                $"{result.ServerName} generates images, but this page is beyond imagination.",
+            };
+            return (messages[random.Next(messages.Length)], "#f5576c");
+        }
+
+        if (ContainsAny(allText, "weather", "forecast", "temperature", "climate"))
+        {
+            var messages = new[]
+            {
+                $"404: {result.ServerName}'s forecast — 0% chance of finding this page.",
+                $"The weather is fine, but this page is lost in a storm of 404s.",
+                $"{result.ServerName} predicts: page not found, with scattered errors.",
+            };
+            return (messages[random.Next(messages.Length)], "#4ECDC4");
+        }
+
+        if (ContainsAny(allText, "math", "calculate", "compute", "convert", "formula"))
+        {
+            var messages = new[]
+            {
+                $"404: {result.ServerName} calculated the odds — this page = undefined.",
+                $"Error: Division by page. {result.ServerName} can't compute what isn't there.",
+                $"{result.ServerName} crunched the numbers. Result: NaN (Not a Page).",
+            };
+            return (messages[random.Next(messages.Length)], "#FFA07A");
+        }
+
+        // Default: use server name and tool count for a generic themed message
+        var toolCount = tools.Count;
+        var defaultMessages = new[]
+        {
+            $"404: {result.ServerName} has {toolCount} tool(s), but none could find this page.",
+            $"Even with {toolCount} tool(s) from {result.ServerName}, this page remains a mystery.",
+            $"{result.ServerName} is powerful, but this page is beyond its {toolCount} tool(s).",
+        };
+        var fallbackColors = new[] { "#FF6B6B", "#98D8C8", "#667eea" };
+
+        return (defaultMessages[random.Next(defaultMessages.Length)], fallbackColors[random.Next(fallbackColors.Length)]);
+    }
+
+    private static bool ContainsAny(string text, params string[] keywords)
+    {
+        return keywords.Any(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 }
