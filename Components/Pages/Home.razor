@@ -1,0 +1,59 @@
+﻿@page "/"
+@rendermode InteractiveServer
+
+<PageTitle>Creative 404 Generator</PageTitle>
+
+<div class="container">
+    <div class="header">
+        <h1>Creative 404 Page Generator</h1>
+        <p>Generate unique and creative 404 error pages</p>
+    </div>
+    
+    <button class="generate-btn" @onclick="GenerateCreative404">
+        Generate 404 Page
+    </button>
+    
+    @if (!string.IsNullOrEmpty(currentMessage))
+    {
+        <div class="preview-container" style="background-color: @currentColor;">
+            <h2 class="error-code">404</h2>
+            <p class="error-message">@currentMessage</p>
+        </div>
+    }
+    else
+    {
+        <div class="preview-placeholder">
+            <p>Click the button above to generate a creative 404 page</p>
+        </div>
+    }
+</div>
+
+@code {
+    private string currentMessage = string.Empty;
+    private string currentColor = string.Empty;
+    
+    private readonly string[] messages = new[]
+    {
+        "Oops! This page went on vacation.",
+        "404: Page not found. But you found this cool message!",
+        "Houston, we have a problem. The page is lost in space.",
+        "The page you're looking for is playing hide and seek.",
+        "Error 404: Page is out for coffee.",
+        "This page has left the building.",
+        "We looked everywhere, but couldn't find this page.",
+        "Plot twist: This page never existed.",
+    };
+    
+    private readonly string[] colors = new[]
+    {
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+        "#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe"
+    };
+    
+    private void GenerateCreative404()
+    {
+        var random = new Random();
+        currentMessage = messages[random.Next(messages.Length)];
+        currentColor = colors[random.Next(colors.Length)];
+    }
+}

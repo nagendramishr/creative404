@@ -1,0 +1,103 @@
+.container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 2rem;
+    text-align: center;
+}
+
+.header {
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    color: #667eea;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+.generate-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 1.5rem 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-weight: 500;
+}
+
+.generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+}
+
+.generate-btn:active {
+    transform: translateY(0);
+}
+
+.preview-container {
+    margin-top: 2rem;
+    padding: 3rem 2rem;
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 0.3s ease-in;
+}
+
+.error-code {
+    font-size: 6rem;
+    font-weight: bold;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.error-message {
+    font-size: 1.8rem;
+    margin-top: 1rem;
+    font-weight: 300;
+}
+
+.preview-placeholder {
+    margin-top: 2rem;
+    padding: 3rem 2rem;
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    color: #999;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (max-width: 768px) {
+    .error-code {
+        font-size: 4rem;
+    }
+    
+    .error-message {
+        font-size: 1.3rem;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+}
