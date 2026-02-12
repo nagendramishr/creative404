@@ -80,8 +80,9 @@ public class ImageGenerationService
             _logger.LogError(ex, "HTTP error generating image");
             result.ErrorMessage = $"Image generation failed: {ex.Message}";
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException ex)
         {
+            _logger.LogWarning(ex, "Image generation request timed out");
             result.ErrorMessage = "Image generation timed out.";
         }
         catch (Exception ex)
