@@ -145,12 +145,12 @@ public class McpService
     /// </summary>
     internal static string? ExtractJsonFromSse(string sseBody)
     {
-        foreach (var line in sseBody.Split('\n'))
+        foreach (var line in sseBody.Split(["\r\n", "\n"], StringSplitOptions.None))
         {
             var trimmed = line.Trim();
             if (trimmed.StartsWith("data:", StringComparison.Ordinal))
             {
-                var data = trimmed.Substring("data:".Length).Trim();
+                var data = trimmed["data:".Length..].Trim();
                 if (data.Length > 0 && data[0] == '{')
                 {
                     return data;
