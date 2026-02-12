@@ -21,6 +21,44 @@
     font-size: 1.1rem;
 }
 
+.mcp-input-section {
+    margin-bottom: 1.5rem;
+    text-align: left;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mcp-input-section label {
+    display: block;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.mcp-url-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.mcp-url-input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.mcp-hint {
+    color: #999;
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+
 .generate-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -34,13 +72,33 @@
     font-weight: 500;
 }
 
-.generate-btn:hover {
+.generate-btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
 }
 
-.generate-btn:active {
+.generate-btn:active:not(:disabled) {
     transform: translateY(0);
+}
+
+.generate-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.error-banner {
+    margin: 1rem auto;
+    padding: 0.75rem 1rem;
+    background-color: #fff3f3;
+    border: 1px solid #ffcccc;
+    border-radius: 8px;
+    color: #cc3333;
+    max-width: 600px;
+    text-align: left;
+}
+
+.error-banner p {
+    margin: 0;
 }
 
 .preview-container {
@@ -75,6 +133,54 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.mcp-info {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: #f8f9ff;
+    border: 1px solid #e0e4f5;
+    border-radius: 12px;
+    text-align: left;
+}
+
+.mcp-info h3 {
+    color: #667eea;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.mcp-version {
+    font-weight: 400;
+    font-size: 0.9rem;
+    color: #999;
+}
+
+.mcp-tools-label {
+    color: #666;
+    margin: 0.5rem 0;
+    font-size: 0.95rem;
+}
+
+.mcp-tools-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.mcp-tools-list li {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+    color: #444;
+}
+
+.mcp-tools-list li:last-child {
+    border-bottom: none;
+}
+
+.mcp-tools-list li strong {
+    color: #333;
 }
 
 @keyframes fadeIn {
