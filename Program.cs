@@ -10,6 +10,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHttpClient("McpClient", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false
 });
 builder.Services.AddScoped<McpService>();
 
