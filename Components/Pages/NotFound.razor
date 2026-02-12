@@ -1,0 +1,29 @@
+﻿@page "/not-found"
+@layout MainLayout
+
+<PageTitle>404 - Page Not Found</PageTitle>
+
+<div class="not-found-container">
+    <h1 class="error-code">404</h1>
+    <p class="error-message">@errorMessage</p>
+    <a href="/" class="home-link">Go Home</a>
+</div>
+
+@code {
+    private string errorMessage = string.Empty;
+    
+    private readonly string[] messages = new[]
+    {
+        "Oops! This page went on vacation.",
+        "Page not found. But you found this cool message!",
+        "Houston, we have a problem. The page is lost in space.",
+        "The page you're looking for is playing hide and seek.",
+        "This page is out for coffee.",
+    };
+    
+    protected override void OnInitialized()
+    {
+        var random = new Random();
+        errorMessage = messages[random.Next(messages.Length)];
+    }
+}
