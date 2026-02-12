@@ -28,7 +28,6 @@ public class McpService
             }
 
             var client = _httpClientFactory.CreateClient("McpClient");
-            client.Timeout = TimeSpan.FromSeconds(10);
 
             // Step 1: Initialize the MCP connection
             var initRequest = new JsonRpcRequest
@@ -86,14 +85,19 @@ public class McpService
         return result;
     }
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private static async Task<JsonRpcResponse<T>?> SendJsonRpcAsync<T>(HttpClient client, string url, JsonRpcRequest request)
     {
-        var json = JsonSerializer.Serialize(request);
+        var json = JsonSerializer.Serialize(request, JsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
         var response = await client.PostAsync(url, content);
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<JsonRpcResponse<T>>(responseJson);
+        return JsonSerializer.Deserialize<JsonRpcResponse<T>>(responseJson, JsonOptions);
     }
 }
