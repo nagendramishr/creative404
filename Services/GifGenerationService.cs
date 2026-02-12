@@ -7,6 +7,47 @@ public class GifGenerationService
 {
     private readonly ILogger<GifGenerationService> _logger;
 
+    // Theme definitions - single source of truth
+    private static readonly List<ThemeInfo> Themes = new()
+    {
+        new ThemeInfo
+        {
+            Id = "default",
+            Name = "Default",
+            Description = "Dark blue theme",
+            BackgroundColors = new[] { "#1a1a2e", "#16213e" },
+            TextColor = "#eeeeee",
+            AccentColor = "#0f3460"
+        },
+        new ThemeInfo
+        {
+            Id = "ocean",
+            Name = "Ocean",
+            Description = "Cool blue waves",
+            BackgroundColors = new[] { "#0077be", "#005f8c" },
+            TextColor = "#ffffff",
+            AccentColor = "#00d4ff"
+        },
+        new ThemeInfo
+        {
+            Id = "sunset",
+            Name = "Sunset",
+            Description = "Warm orange glow",
+            BackgroundColors = new[] { "#ff6b6b", "#ee5a6f" },
+            TextColor = "#ffffff",
+            AccentColor = "#ffd93d"
+        },
+        new ThemeInfo
+        {
+            Id = "forest",
+            Name = "Forest",
+            Description = "Natural green",
+            BackgroundColors = new[] { "#2d4a3e", "#1f3329" },
+            TextColor = "#e8f5e9",
+            AccentColor = "#66bb6a"
+        }
+    };
+
     public GifGenerationService(ILogger<GifGenerationService> logger)
     {
         _logger = logger;
@@ -19,32 +60,23 @@ public class GifGenerationService
             try
             {
                 var theme = GetTheme(request.Theme);
-                var frames = new List<SKBitmap>();
-                var numFrames = 30;
+                
+                // Generate a single frame since GIF animation encoding is not yet implemented
+                var bitmap = GenerateFrame(
+                    request.Width,
+                    request.Height,
+                    0,
+                    1,
+                    theme,
+                    mcpInfo);
 
-                // Generate frames
-                for (int frame = 0; frame < numFrames; frame++)
-                {
-                    var bitmap = GenerateFrame(
-                        request.Width,
-                        request.Height,
-                        frame,
-                        numFrames,
-                        theme,
-                        mcpInfo);
-                    frames.Add(bitmap);
-                }
-
-                // Encode as GIF
-                var gifBytes = EncodeAsGif(frames, request.Width, request.Height);
+                // Encode as PNG
+                var imageBytes = EncodeAsPng(bitmap);
 
                 // Clean up
-                foreach (var frame in frames)
-                {
-                    frame.Dispose();
-                }
+                bitmap.Dispose();
 
-                return gifBytes;
+                return imageBytes;
             }
             catch (Exception ex)
             {
@@ -59,7 +91,7 @@ public class GifGenerationService
         var bitmap = new SKBitmap(width, height);
         using var canvas = new SKCanvas(bitmap);
 
-        var progress = (float)frameIndex / totalFrames;
+        var progress = totalFrames > 1 ? (float)frameIndex / totalFrames : 0.5f;
 
         // Draw background gradient
         var gradient = SKShader.CreateLinearGradient(
@@ -125,106 +157,22 @@ public class GifGenerationService
         return bitmap;
     }
 
-    private byte[] EncodeAsGif(List<SKBitmap> frames, int width, int height)
+    private byte[] EncodeAsPng(SKBitmap bitmap)
     {
-        // For simplicity, we'll encode as individual PNG frames and create a simple animated structure
-        // In production, you'd use a proper GIF encoder library
-        using var stream = new MemoryStream();
-        
-        // For now, just encode the first frame as PNG to demonstrate
-        // A proper GIF encoder would be needed for actual animation
-        using var image = SKImage.FromBitmap(frames[0]);
+        using var image = SKImage.FromBitmap(bitmap);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        using var stream = new MemoryStream();
         data.SaveTo(stream);
-        
         return stream.ToArray();
     }
 
     private ThemeInfo GetTheme(string themeId)
     {
-        var themes = new Dictionary<string, ThemeInfo>
-        {
-            ["default"] = new ThemeInfo
-            {
-                Id = "default",
-                Name = "Default",
-                Description = "Dark blue theme",
-                BackgroundColors = new[] { "#1a1a2e", "#16213e" },
-                TextColor = "#eeeeee",
-                AccentColor = "#0f3460"
-            },
-            ["ocean"] = new ThemeInfo
-            {
-                Id = "ocean",
-                Name = "Ocean",
-                Description = "Cool blue waves",
-                BackgroundColors = new[] { "#0077be", "#005f8c" },
-                TextColor = "#ffffff",
-                AccentColor = "#00d4ff"
-            },
-            ["sunset"] = new ThemeInfo
-            {
-                Id = "sunset",
-                Name = "Sunset",
-                Description = "Warm orange glow",
-                BackgroundColors = new[] { "#ff6b6b", "#ee5a6f" },
-                TextColor = "#ffffff",
-                AccentColor = "#ffd93d"
-            },
-            ["forest"] = new ThemeInfo
-            {
-                Id = "forest",
-                Name = "Forest",
-                Description = "Natural green",
-                BackgroundColors = new[] { "#2d4a3e", "#1f3329" },
-                TextColor = "#e8f5e9",
-                AccentColor = "#66bb6a"
-            }
-        };
-
-        return themes.ContainsKey(themeId) ? themes[themeId] : themes["default"];
+        return Themes.FirstOrDefault(t => t.Id == themeId) ?? Themes[0];
     }
 
     public List<ThemeInfo> GetAvailableThemes()
     {
-        return new List<ThemeInfo>
-        {
-            new ThemeInfo
-            {
-                Id = "default",
-                Name = "Default",
-                Description = "Dark blue theme",
-                BackgroundColors = new[] { "#1a1a2e", "#16213e" },
-                TextColor = "#eeeeee",
-                AccentColor = "#0f3460"
-            },
-            new ThemeInfo
-            {
-                Id = "ocean",
-                Name = "Ocean",
-                Description = "Cool blue waves",
-                BackgroundColors = new[] { "#0077be", "#005f8c" },
-                TextColor = "#ffffff",
-                AccentColor = "#00d4ff"
-            },
-            new ThemeInfo
-            {
-                Id = "sunset",
-                Name = "Sunset",
-                Description = "Warm orange glow",
-                BackgroundColors = new[] { "#ff6b6b", "#ee5a6f" },
-                TextColor = "#ffffff",
-                AccentColor = "#ffd93d"
-            },
-            new ThemeInfo
-            {
-                Id = "forest",
-                Name = "Forest",
-                Description = "Natural green",
-                BackgroundColors = new[] { "#2d4a3e", "#1f3329" },
-                TextColor = "#e8f5e9",
-                AccentColor = "#66bb6a"
-            }
-        };
+        return new List<ThemeInfo>(Themes);
     }
 }
