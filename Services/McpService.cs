@@ -28,6 +28,10 @@ public class McpService
                 return result;
             }
 
+            // Ensure the URL path ends with a trailing slash to avoid 307 redirects
+            // that can cause headers (including Accept) to be dropped
+            serverUrl = NormalizeUrl(serverUrl);
+
             var client = _httpClientFactory.CreateClient("McpClient");
             string? sessionId = null;
 
@@ -113,6 +117,33 @@ public class McpService
         }
 
         var response = await client.SendAsync(httpRequest);
+
+        // Handle 307/308 redirects manually to preserve method, body, and headers
+        if (response.StatusCode is System.Net.HttpStatusCode.TemporaryRedirect
+            or System.Net.HttpStatusCode.PermanentRedirect)
+        {
+            var redirectUrl = response.Headers.Location;
+            if (redirectUrl != null)
+            {
+                var redirectUri = redirectUrl.IsAbsoluteUri
+                    ? redirectUrl
+                    : new Uri(new Uri(url), redirectUrl);
+
+                var redirectContent = new StringContent(json, Encoding.UTF8, "application/json");
+                using var redirectRequest = new HttpRequestMessage(HttpMethod.Post, redirectUri);
+                redirectRequest.Content = redirectContent;
+                redirectRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                redirectRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+                if (sessionId != null)
+                {
+                    redirectRequest.Headers.Add("Mcp-Session-Id", sessionId);
+                }
+
+                response = await client.SendAsync(redirectRequest);
+            }
+        }
+
         response.EnsureSuccessStatusCode();
 
         // Extract session ID from response headers
@@ -137,6 +168,24 @@ public class McpService
         }
 
         return (JsonSerializer.Deserialize<JsonRpcResponse<T>>(responseBody, JsonOptions), returnedSessionId);
+    }
+
+    /// <summary>
+    /// Ensures the URL path ends with a trailing slash to prevent 307 redirects
+    /// that can cause headers to be dropped by HTTP clients.
+    /// </summary>
+    internal static string NormalizeUrl(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            if (!uri.AbsolutePath.EndsWith('/'))
+            {
+                var builder = new UriBuilder(uri);
+                builder.Path += "/";
+                return builder.Uri.ToString();
+            }
+        }
+        return url;
     }
 
     /// <summary>
